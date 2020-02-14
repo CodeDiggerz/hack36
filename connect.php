@@ -7,6 +7,7 @@ $v=$_POST['PASSWORD'];
 $w=$_POST['CONPASSWORD'];
 if($r==""||$s==""||$t==""||$u==""||$v==""||$w=="")
 {
+    //lauda mera abcd
 $msg="PLEASE FILL ALL THE FIELDS";
 echo"<script type='text/javascript'>alert('$msg');</script>";
 }
