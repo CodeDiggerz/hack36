@@ -1,14 +1,47 @@
-0000-0010:  50 4b 03 04-14 00 00 00-08 00 0a 7c-6f 50 de af  PK...... ...|oP..
-0000-0020:  a6 1c 35 00-00 00 36 00-00 00 0c 00-00 00 4c 6f  ..5...6. ......Lo
-0000-0030:  63 61 74 69-6f 6e 2e 74-78 74 73 2a-ca 57 c8 2c  cation.t xts*.W.,
-0000-0040:  29 56 c8 4d-55 70 2f cd-ca 2a d5 53-f0 4d 4d 2d  )V.MUp/. .*.S.MM-
-0000-0050:  01 71 1d 83-1d 03 78 b9-d2 72 12 d3-ab 3d 52 23  .q....x. .r...=R#
-0000-0060:  e3 23 0d 42-e3 d3 0c 42-fd 5c e2 7d-8d 6b 01 50  .#.B...B .\.}.k.P
-0000-0070:  4b 01 02 1f-00 14 00 00-00 08 00 0a-7c 6f 50 de  K....... ....|oP.
-0000-0080:  af a6 1c 35-00 00 00 36-00 00 00 0c-00 24 00 00  ...5...6 .....$..
-0000-0090:  00 00 00 00-00 20 00 00-00 00 00 00-00 4c 6f 63  ........ .....Loc
-0000-00a0:  61 74 69 6f-6e 2e 74 78-74 0a 00 20-00 00 00 00  ation.tx t.......
-0000-00b0:  00 01 00 18-00 18 f9 05-d1 b0 fa d5-01 18 f9 05  ........ ........
-0000-00c0:  d1 b0 fa d5-01 fb f2 92-22 b0 fa d5-01 50 4b 05  ........ "....PK.
-0000-00d0:  06 00 00 00-00 01 00 01-00 5e 00 00-00 5f 00 00  ........ .^..._..
-0000-00d3:  00 00 00                                         ...
+#!/usr/bin/env python
+
+import sys
+import struct
+from zlib import crc32
+import os
+
+# PNG file format signature
+pngsig = '\x89PNG\r\n\x1a\n'
+
+def swap_palette(filename, n):
+    # open in read+write mode
+    with open(filename, 'r+b') as f:
+        f.seek(0)
+        # verify that we have a PNG file
+        if f.read(len(pngsig)) != pngsig:
+            raise RuntimeError('not a png file!')
+
+        while True:
+            chunkstr = f.read(8)
+            if len(chunkstr) != 8:
+                # end of file
+                break
+
+            # decode the chunk header
+            length, chtype = struct.unpack('>L4s', chunkstr)
+            # we only care about palette chunks
+            if chtype == 'PLTE':
+                curpos = f.tell()
+                paldata = f.read(length)
+		# replace palette entry n with white, the rest with black
+                paldata = ("\x00\x00\x00" * n) + "\xff\xff\xff" + ("\x00\x00\x00" * (256 - n - 1))
+		# replace palette entry 127 to 127 + n with white, the rest with black
+                #paldata = ("\x00\x00\x00" * 127) + ("\xff\xff\xff"*n) + ("\x00\x00\x00" * (256 - (127 + n)))
+
+                # go back and write the modified palette in-place
+                f.seek(curpos)
+                f.write(paldata)
+                f.write(struct.pack('>L', crc32(chtype+paldata)&0xffffffff))
+            else:
+                # skip over non-palette chunks
+                f.seek(length+4, os.SEEK_CUR)
+
+if __name__ == '__main__':
+    import shutil
+    shutil.copyfile(sys.argv[1], sys.argv[2])
+    swap_palette(sys.argv[2], int(sys.argv[3]))
