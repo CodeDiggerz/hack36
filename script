@@ -1,0 +1,4 @@
+#!/usr/bin
+
+nc hackthisfor.me 4002
+grep '+'
